@@ -1,456 +1,438 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1"
-    />
-    <title>Smoking Habit Tracker</title>
-    <link rel="icon" href="data:," />
-    <!-- Tailwind via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-gray-900">
-    <div id="root"></div>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Smoking Habit Tracker</title>
+<style>
+  :root {
+    --bg: #0f172a;        /* slate-900 */
+    --panel: #1f2937;     /* gray-800 */
+    --panel-2: #111827;   /* gray-900 */
+    --text: #e5e7eb;      /* gray-200 */
+    --muted: #9ca3af;     /* gray-400 */
+    --accent: #facc15;    /* yellow-400 */
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --border: #374151;    /* gray-700 */
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+  h1 { text-align: center; color: var(--accent); margin: 0 0 16px; font-size: 28px; }
+  .tabs { display: flex; justify-content: center; gap: 8px; margin: 16px 0 24px; }
+  .tab { padding: 10px 16px; border-radius: 10px; font-weight: 600; background: var(--panel); color: #ddd; border: 1px solid var(--border); cursor: pointer; }
+  .tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 16px; }
+  button {
+    border: none; border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer;
+    color: #fff; background: var(--panel); border: 1px solid var(--border);
+  }
+  button:disabled { opacity: .6; cursor: default; }
+  .btn-green { background: var(--green); }
+  .btn-amber { background: var(--amber); }
+  .btn-red { background: var(--red); }
+  .btn-blue { background: #3b82f6; }
+  input[type="time"], input[type="date"] {
+    background: var(--panel); color: #fff; border: 1px solid var(--border);
+    padding: 10px 12px; border-radius: 10px;
+  }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; text-align: center; }
+  .card .muted { color: var(--muted); font-size: 12px; }
+  .card .big { font-size: 28px; font-weight: 800; }
+  .card .small { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-top: 12px; }
+  .title { color: var(--accent); font-size: 16px; font-weight: 700; margin: 0 0 8px; }
+  .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .li { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; }
+  .note { color: var(--muted); font-size: 12px; text-align: center; margin-bottom: 6px; }
+  /* Chart */
+  .chart-wrap { height: 320px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 8px; }
+  .chart { width: 100%; height: 100%; }
+  .axis { stroke: #9ca3af; stroke-width: 1; }
+  .grid { stroke: #374151; stroke-width: 1; stroke-dasharray: 3 3; }
+  .dot { fill: var(--accent); }
+  .tick { fill: #d1d5db; font-size: 11px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Smoking Habit Tracker</h1>
 
-    <!-- React + ReactDOM (production UMD) -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <div class="tabs">
+      <button id="tab-today" class="tab active">Today</button>
+      <button id="tab-history" class="tab">History</button>
+    </div>
 
-    <!-- Recharts UMD -->
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js" crossorigin></script>
+    <div id="today-ui">
+      <div class="row">
+        <button id="btn-smoke" class="btn-green">I Smoked</button>
+        <button id="btn-undo" class="btn-amber" disabled>Undo Last</button>
+        <button id="btn-reset" class="btn-red" disabled>Reset</button>
+      </div>
 
-    <!-- Babel to transpile JSX in-browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+      <div class="row">
+        <input id="manual-time" type="time" />
+        <button id="btn-add-manual" class="btn-blue">Add Manual</button>
+      </div>
 
-    <script type="text/babel">
-      const {
-        useState, useEffect, useMemo
-      } = React;
+      <div class="stats">
+        <div class="card">
+          <div class="muted">Today</div>
+          <div id="stat-today" class="big">0</div>
+        </div>
+        <div class="card">
+          <div class="muted">All Time</div>
+          <div id="stat-all" class="big">0</div>
+        </div>
+        <div class="card">
+          <div class="muted">Since last smoke</div>
+          <div id="since-last" class="big">—</div>
+          <div id="since-last-at" class="small"></div>
+        </div>
+      </div>
 
-      const {
-        ResponsiveContainer,
-        ScatterChart,
-        Scatter,
-        XAxis,
-        YAxis,
-        CartesianGrid,
-        Tooltip,
-      } = Recharts;
+      <div class="note">Events over the last 24 hours (midnight → now)</div>
+      <div class="chart-wrap"><svg id="chart-today" class="chart"></svg></div>
 
-      // ---- Date helpers ----
-      function startOfDay(date) {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime();
-      }
-      function endOfDay(date) {
-        const d = new Date(date);
-        d.setHours(24, 0, 0, 0);
-        return d.getTime();
-      }
-      function startOfToday() { return startOfDay(new Date()); }
-      function endOfToday() { return endOfDay(new Date()); }
+      <div class="panel">
+        <div class="title">Today's Events</div>
+        <ul id="list-today" class="list"></ul>
+      </div>
+    </div>
 
-      function formatTime(ts) {
-        return new Date(ts).toLocaleTimeString([], {
-          hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
-        });
-      }
+    <div id="history-ui" style="display:none">
+      <div class="row">
+        <button id="btn-prev" class="">◀ Prev</button>
+        <input id="history-date" type="date" />
+        <button id="btn-next" class="">Next ▶</button>
+      </div>
 
-      function formatDuration(ms) {
-        if (ms <= 0 || !Number.isFinite(ms)) return "—";
-        const s = Math.floor(ms / 1000);
-        const hh = Math.floor(s / 3600);
-        const mm = Math.floor((s % 3600) / 60);
-        const ss = s % 60;
-        const pad = (n) => String(n).padStart(2, "0");
-        if (hh > 0) return `${hh}h ${pad(mm)}m ${pad(ss)}s`;
-        return `${mm}m ${pad(ss)}s`;
-      }
+      <div class="stats">
+        <div class="card">
+          <div class="muted">Selected Day</div>
+          <div id="stat-selected" class="big">0</div>
+        </div>
+        <div class="card">
+          <div class="muted">All Time</div>
+          <div id="stat-all-2" class="big">0</div>
+        </div>
+        <div class="card">
+          <div class="muted">Date</div>
+          <div id="stat-date" class="big" style="font-size:20px"></div>
+        </div>
+      </div>
 
-      const LS_KEY = "habit_smokes_v1";
+      <div class="note">Events for selected date</div>
+      <div class="chart-wrap"><svg id="chart-history" class="chart"></svg></div>
 
-      function App() {
-        const [smokeEvents, setSmokeEvents] = useState([]);
-        const [manualTime, setManualTime] = useState("");
-        const [nowTs, setNowTs] = useState(Date.now());
-        const [tab, setTab] = useState("today"); // "today" | "history"
-        const [historyDate, setHistoryDate] = useState(() => {
-          const d = new Date();
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, "0");
-          const day = String(d.getDate()).padStart(2, "0");
-          return `${y}-${m}-${day}`;
-        });
+      <div class="panel">
+        <div class="title">Events on selected date</div>
+        <ul id="list-history" class="list"></ul>
+      </div>
+    </div>
+  </div>
 
-        // Live ticker for "time since last"
-        useEffect(() => {
-          const id = setInterval(() => setNowTs(Date.now()), 1000);
-          return () => clearInterval(id);
-        }, []);
+<script>
+(() => {
+  const LS_KEY = 'habit_smokes_v1';
 
-        // Load from localStorage
-        useEffect(() => {
-          try {
-            const raw = localStorage.getItem(LS_KEY);
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) setSmokeEvents(parsed);
-            }
-          } catch {}
-        }, []);
+  // --- State ---
+  let smokeEvents = [];
+  let tab = 'today'; // 'today' | 'history'
+  let historyDate = toYYYYMMDD(new Date());
+  let nowTs = Date.now();
+  const ticker = setInterval(() => { nowTs = Date.now(); render(); }, 1000);
 
-        // Save to localStorage
-        useEffect(() => {
-          try {
-            localStorage.setItem(LS_KEY, JSON.stringify(smokeEvents));
-          } catch {}
-        }, [smokeEvents]);
+  // --- Helpers ---
+  function toYYYYMMDD(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function startOfDay(date) { const d = new Date(date); d.setHours(0,0,0,0); return d.getTime(); }
+  function endOfDay(date)   { const d = new Date(date); d.setHours(24,0,0,0); return d.getTime(); }
+  const startOfToday = () => startOfDay(new Date());
+  const endOfToday   = () => endOfDay(new Date());
+  function fmtTime(ts) {
+    return new Date(ts).toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  }
+  function fmtDuration(ms) {
+    if (ms <= 0 || !Number.isFinite(ms)) return '—';
+    const s = Math.floor(ms/1000);
+    const hh = Math.floor(s/3600);
+    const mm = Math.floor((s%3600)/60);
+    const ss = s%60;
+    const pad = n => String(n).padStart(2,'0');
+    return hh>0 ? `${hh}h ${pad(mm)}m ${pad(ss)}s` : `${mm}m ${pad(ss)}s`;
+  }
 
-        const handleSmoke = (timestamp = Date.now()) => {
-          setSmokeEvents((prev) => [...prev, { timestamp }]);
-        };
+  // --- Persistence ---
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) smokeEvents = parsed;
+    }
+  } catch {}
 
-        const handleManualAdd = () => {
-          if (!manualTime) return;
-          const [hoursStr, minutesStr] = manualTime.split(":");
-          const hours = Number(hoursStr);
-          const minutes = Number(minutesStr);
-          if (Number.isNaN(hours) || Number.isNaN(minutes)) return;
-          const now = new Date();
-          now.setHours(hours, minutes, 0, 0);
-          handleSmoke(now.getTime());
-          setManualTime("");
-        };
+  function save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(smokeEvents)); } catch {}
+  }
 
-        const handleReset = () => setSmokeEvents([]);
-        const handleUndoLast = () =>
-          setSmokeEvents((prev) => (prev.length ? prev.slice(0, -1) : prev));
-        const deleteEvent = (globalIndex) =>
-          setSmokeEvents((prev) => prev.filter((_, i) => i !== globalIndex));
+  // --- Actions ---
+  function addSmoke(ts = Date.now()) { smokeEvents.push({ timestamp: ts }); save(); render(); }
+  function addManual(timeStr) {
+    if (!timeStr) return;
+    const [hStr,mStr] = timeStr.split(':');
+    const h = Number(hStr), m = Number(mStr);
+    if (Number.isNaN(h) || Number.isNaN(m)) return;
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    addSmoke(d.getTime());
+  }
+  function resetAll() { smokeEvents = []; save(); render(); }
+  function undoLast() { if (smokeEvents.length) { smokeEvents.pop(); save(); render(); } }
+  function deleteEvent(globalIndex) { smokeEvents.splice(globalIndex, 1); save(); render(); }
+  function setTab(newTab) { tab = newTab; render(); }
+  function shiftHistory(days) {
+    const [y,m,d] = historyDate.split('-').map(Number);
+    const base = new Date(y, m-1, d);
+    base.setDate(base.getDate() + days);
+    historyDate = toYYYYMMDD(base);
+    render();
+  }
 
-        // Day bounds (today and history)
-        const todayStart = useMemo(() => startOfToday(), []);
-        const todayEnd = useMemo(() => endOfToday(), []);
-        const historyDayStart = useMemo(() => {
-          const [y, m, d] = historyDate.split("-").map(Number);
-          return startOfDay(new Date(y, m - 1, d));
-        }, [historyDate]);
-        const historyDayEnd = useMemo(
-          () => endOfDay(new Date(historyDayStart)),
-          [historyDayStart]
-        );
+  // --- Derived ---
+  function dayBoundsForTab() {
+    if (tab === 'today') return { dayStart: startOfToday(), dayEnd: endOfToday() };
+    const [y,m,d] = historyDate.split('-').map(Number);
+    const start = startOfDay(new Date(y, m-1, d));
+    return { dayStart: start, dayEnd: endOfDay(new Date(start)) };
+  }
+  function subsetWithIndex(dayStart, dayEnd) {
+    return smokeEvents
+      .map((e, idx) => ({ ...e, _idx: idx }))
+      .filter(e => e.timestamp >= dayStart && e.timestamp < dayEnd)
+      .sort((a,b) => a.timestamp - b.timestamp);
+  }
+  function lastTsGlobal() {
+    if (!smokeEvents.length) return null;
+    return smokeEvents.reduce((m,e)=> e.timestamp>m?e.timestamp:m, 0);
+  }
 
-        const { dayStart, dayEnd } = useMemo(
-          () =>
-            tab === "today"
-              ? { dayStart: todayStart, dayEnd: todayEnd }
-              : { dayStart: historyDayStart, dayEnd: historyDayEnd },
-          [tab, todayStart, todayEnd, historyDayStart, historyDayEnd]
-        );
+  // --- Chart (simple SVG scatter) ---
+  function renderScatter(svg, items, dayStart, dayEnd) {
+    const w = svg.clientWidth;
+    const h = svg.clientHeight;
+    const padding = { left: 40, right: 12, top: 12, bottom: 24 };
+    const innerW = Math.max(10, w - padding.left - padding.right);
+    const innerH = Math.max(10, h - padding.top - padding.bottom);
 
-        // Subset for the active day with original indices
-        const dayEventsWithIndex = useMemo(
-          () =>
-            smokeEvents
-              .map((e, idx) => ({ ...e, _globalIndex: idx }))
-              .filter((e) => e.timestamp >= dayStart && e.timestamp < dayEnd)
-              .sort((a, b) => a.timestamp - b.timestamp),
-          [smokeEvents, dayStart, dayEnd]
-        );
+    svg.innerHTML = ''; // clear
 
-        // Latest event time (global)
-        const lastTs = useMemo(() => {
-          if (!smokeEvents.length) return null;
-          return smokeEvents.reduce((m, e) => (e.timestamp > m ? e.timestamp : m), 0);
-        }, [smokeEvents]);
+    // Scales
+    const xMin = dayStart, xMax = dayEnd;
+    const x = ts => padding.left + ( (ts - xMin) / (xMax - xMin) ) * innerW;
 
-        // Vertical stacking per-minute to prevent overlap
-        const data = useMemo(() => {
-          const buckets = {};
-          return dayEventsWithIndex.map((e) => {
-            const k = Math.floor(e.timestamp / 60000);
-            buckets[k] = (buckets[k] || 0) + 1;
-            return { x: e.timestamp, y: buckets[k], ts: e.timestamp };
-          });
-        }, [dayEventsWithIndex]);
+    // Vertical stacking by minute
+    const buckets = {};
+    const points = items.map(e => {
+      const minuteKey = Math.floor(e.timestamp/60000);
+      buckets[minuteKey] = (buckets[minuteKey]||0) + 1;
+      return { x: x(e.timestamp), yLevel: buckets[minuteKey], ts: e.timestamp };
+    });
+    const maxLevel = Math.max(2, ...points.map(p=>p.yLevel));
+    const y = lvl => padding.top + innerH - ( (lvl-1) / (maxLevel-1) ) * innerH;
 
-        const hasEvents = smokeEvents.length > 0;
+    // Grid lines every 2 hours
+    const gridGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const twoH = 2 * 60 * 60 * 1000;
+    for (let t = Math.ceil(dayStart / twoH) * twoH; t <= dayEnd; t += twoH) {
+      const gx = x(t);
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', gx); line.setAttribute('y1', padding.top);
+      line.setAttribute('x2', gx); line.setAttribute('y2', padding.top + innerH);
+      line.setAttribute('class', 'grid');
+      gridGroup.appendChild(line);
 
-        const shiftHistoryDate = (days) => {
-          const [y, m, d] = historyDate.split("-").map(Number);
-          const base = new Date(y, m - 1, d);
-          base.setDate(base.getDate() + days);
-          const yy = base.getFullYear();
-          const mm = String(base.getMonth() + 1).padStart(2, "0");
-          const dd = String(base.getDate()).padStart(2, "0");
-          setHistoryDate(`${yy}-${mm}-${dd}`);
-        };
+      const tick = document.createElementNS('http://www.w3.org/2000/svg','text');
+      tick.setAttribute('x', gx); tick.setAttribute('y', padding.top + innerH + 14);
+      tick.setAttribute('text-anchor', 'middle'); tick.setAttribute('class', 'tick');
+      const d = new Date(t);
+      tick.textContent = d.toLocaleTimeString([], {hour12:false, hour:'2-digit'});
+      gridGroup.appendChild(tick);
+    }
+    svg.appendChild(gridGroup);
 
-        return (
-          <div className="p-6 max-w-4xl mx-auto text-white">
-            <h1 className="text-3xl font-bold mb-4 text-center text-yellow-400">
-              Smoking Habit Tracker
-            </h1>
+    // Axes
+    const axisX = document.createElementNS('http://www.w3.org/2000/svg','line');
+    axisX.setAttribute('x1', padding.left); axisX.setAttribute('y1', padding.top + innerH);
+    axisX.setAttribute('x2', padding.left + innerW); axisX.setAttribute('y2', padding.top + innerH);
+    axisX.setAttribute('class', 'axis');
+    svg.appendChild(axisX);
 
-            {/* Tabs */}
-            <div className="flex justify-center gap-2 mb-6">
-              <button
-                onClick={() => setTab("today")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === "today" ? "bg-yellow-400 text-black" : "bg-gray-800 text-gray-200"}`}
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setTab("history")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === "history" ? "bg-yellow-400 text-black" : "bg-gray-800 text-gray-200"}`}
-              >
-                History
-              </button>
-            </div>
+    // Dots
+    const dotsGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+    points.forEach(p => {
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx', p.x);
+      c.setAttribute('cy', y(p.yLevel));
+      c.setAttribute('r', 5);
+      c.setAttribute('class', 'dot');
+      c.setAttribute('data-ts', p.ts);
+      c.addEventListener('mouseenter', e => showTooltip(svg, e.clientX, e.clientY, fmtTime(p.ts)));
+      c.addEventListener('mouseleave', hideTooltip);
+      dotsGroup.appendChild(c);
+    });
+    svg.appendChild(dotsGroup);
+  }
 
-            {tab === "today" && (
-              <>
-                <div className="flex flex-wrap gap-3 mb-4 justify-center">
-                  <button onClick={() => handleSmoke()} className="bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded-lg">
-                    I Smoked
-                  </button>
-                  <button
-                    onClick={handleUndoLast}
-                    disabled={!hasEvents}
-                    className={`font-semibold px-4 py-2 rounded-lg ${hasEvents ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-gray-700 text-gray-400"}`}
-                  >
-                    Undo Last
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    disabled={!hasEvents}
-                    className={`font-semibold px-4 py-2 rounded-lg ${hasEvents ? "bg-red-500 hover:bg-red-600 text-white" : "bg-gray-700 text-gray-400"}`}
-                  >
-                    Reset
-                  </button>
-                </div>
+  // Simple tooltip using title element fallback
+  let tip;
+  function showTooltip(svg, clientX, clientY, text) {
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.style.position = 'fixed';
+      tip.style.padding = '6px 8px';
+      tip.style.background = '#111827';
+      tip.style.border = '1px solid #374151';
+      tip.style.borderRadius = '8px';
+      tip.style.color = '#fff';
+      tip.style.fontSize = '12px';
+      tip.style.pointerEvents = 'none';
+      tip.style.zIndex = 9999;
+      document.body.appendChild(tip);
+    }
+    tip.textContent = text;
+    tip.style.display = 'block';
+    tip.style.left = (clientX + 10) + 'px';
+    tip.style.top  = (clientY + 10) + 'px';
+  }
+  function hideTooltip() { if (tip) tip.style.display = 'none'; }
 
-                <div className="flex gap-2 justify-center mb-6">
-                  <input
-                    type="time"
-                    value={manualTime}
-                    onChange={(e) => setManualTime(e.target.value)}
-                    className="bg-gray-800 text-white p-2 rounded-lg border border-gray-700"
-                  />
-                  <button
-                    onClick={handleManualAdd}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg"
-                  >
-                    Add Manual
-                  </button>
-                </div>
+  // --- DOM refs ---
+  const $ = sel => document.querySelector(sel);
+  const elTodayUI = $('#today-ui');
+  const elHistoryUI = $('#history-ui');
+  const elBtnSmoke = $('#btn-smoke');
+  const elBtnUndo  = $('#btn-undo');
+  const elBtnReset = $('#btn-reset');
+  const elManual   = $('#manual-time');
+  const elBtnAdd   = $('#btn-add-manual');
+  const elStatToday= $('#stat-today');
+  const elStatAll  = $('#stat-all');
+  const elSince    = $('#since-last');
+  const elSinceAt  = $('#since-last-at');
+  const svgToday   = $('#chart-today');
+  const listToday  = $('#list-today');
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-gray-800 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-300">Today</div>
-                    <div className="text-3xl font-bold text-yellow-300">
-                      {dayEventsWithIndex.length}
-                    </div>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-300">All Time</div>
-                    <div className="text-3xl font-bold">{smokeEvents.length}</div>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-300">Since last smoke</div>
-                    <div className="text-2xl font-bold" aria-live="polite">
-                      {lastTs ? formatDuration(nowTs - lastTs) : "—"}
-                    </div>
-                    {lastTs && (
-                      <div className="text-xs text-gray-400 mt-1">
-                        Last at {formatTime(lastTs)}
-                      </div>
-                    )}
-                  </div>
-                </div>
+  const elTabToday = $('#tab-today');
+  const elTabHist  = $('#tab-history');
+  const elBtnPrev  = $('#btn-prev');
+  const elBtnNext  = $('#btn-next');
+  const elDate     = $('#history-date');
+  const elStatSel  = $('#stat-selected');
+  const elStatAll2 = $('#stat-all-2');
+  const elStatDate = $('#stat-date');
+  const svgHist    = $('#chart-history');
+  const listHist   = $('#list-history');
 
-                <div className="mb-2 text-sm text-gray-300 text-center">
-                  Events over the last 24 hours (midnight → now)
-                </div>
+  // --- Events wiring ---
+  elBtnSmoke.addEventListener('click', () => addSmoke());
+  elBtnUndo.addEventListener('click', () => undoLast());
+  elBtnReset.addEventListener('click', () => resetAll());
+  elBtnAdd.addEventListener('click', () => addManual(elManual.value));
 
-                <div className="h-72 bg-gray-800 p-4 rounded-lg mb-6">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                      <XAxis
-                        type="number"
-                        dataKey="x"
-                        domain={[dayStart, dayEnd]}
-                        scale="time"
-                        tickFormatter={(v) =>
-                          new Date(v).toLocaleTimeString([], {
-                            hour12: false,
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        }
-                        stroke="#ccc"
-                        label={{
-                          value: "Time of day",
-                          position: "insideBottom",
-                          offset: -5,
-                          fill: "#ccc",
-                        }}
-                      />
-                      <YAxis type="number" dataKey="y" domain={[0, "dataMax"]} hide />
-                      <Tooltip
-                        labelFormatter={(v) => formatTime(v)}
-                        formatter={(_, __, { payload }) => [formatTime(payload.ts), "Time"]}
-                        contentStyle={{ backgroundColor: "#222", border: "none", color: "#fff" }}
-                      />
-                      <Scatter data={data} shape="circle" fill="#facc15" />
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </div>
+  elTabToday.addEventListener('click', () => setTab('today'));
+  elTabHist.addEventListener('click', () => setTab('history'));
+  elBtnPrev.addEventListener('click', () => shiftHistory(-1));
+  elBtnNext.addEventListener('click', () => shiftHistory(1));
+  elDate.addEventListener('change', () => { historyDate = elDate.value; render(); });
 
-                <div className="bg-gray-800 rounded-xl p-4 mb-4">
-                  <h2 className="text-lg font-bold mb-2 text-yellow-300">Today's Events</h2>
-                  {dayEventsWithIndex.length === 0 ? (
-                    <p className="text-gray-400">No events logged yet.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {dayEventsWithIndex.map((e) => (
-                        <li
-                          key={e._globalIndex}
-                          className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2"
-                        >
-                          <span className="text-white">{formatTime(e.timestamp)}</span>
-                          <button
-                            onClick={() => deleteEvent(e._globalIndex)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm"
-                          >
-                            Delete
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </>
-            )}
+  // --- Render ---
+  function render() {
+    // Tabs
+    if (tab === 'today') {
+      elTodayUI.style.display = '';
+      elHistoryUI.style.display = 'none';
+      elTabToday.classList.add('active');
+      elTabHist.classList.remove('active');
+    } else {
+      elTodayUI.style.display = 'none';
+      elHistoryUI.style.display = '';
+      elTabToday.classList.remove('active');
+      elTabHist.classList.add('active');
+    }
 
-            {tab === "history" && (
-              <>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => shiftHistoryDate(-1)}
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm"
-                    >
-                      ◀ Prev
-                    </button>
-                    <input
-                      type="date"
-                      value={historyDate}
-                      onChange={(e) => setHistoryDate(e.target.value)}
-                      className="bg-gray-800 text-white p-2 rounded-lg border border-gray-700"
-                    />
-                    <button
-                      onClick={() => shiftHistoryDate(1)}
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm"
-                    >
-                      Next ▶
-                    </button>
-                  </div>
-                </div>
+    // Today view
+    const { dayStart, dayEnd } = dayBoundsForTab();
+    const dayItems = subsetWithIndex(dayStart, dayEnd);
+    elStatToday.textContent = dayItems.length;
+    elStatAll.textContent = smokeEvents.length;
+    const last = lastTsGlobal();
+    if (last) {
+      elSince.textContent = fmtDuration(nowTs - last);
+      elSinceAt.textContent = 'Last at ' + fmtTime(last);
+    } else {
+      elSince.textContent = '—';
+      elSinceAt.textContent = '';
+    }
+    elBtnUndo.disabled = smokeEvents.length === 0;
+    elBtnReset.disabled = smokeEvents.length === 0;
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-gray-800 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-300">Selected day</div>
-                    <div className="text-3xl font-bold text-yellow-300">
-                      {dayEventsWithIndex.length}
-                    </div>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-300">All Time</div>
-                    <div className="text-3xl font-bold">{smokeEvents.length}</div>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-300">Date</div>
-                    <div className="text-lg font-bold">{historyDate}</div>
-                  </div>
-                </div>
+    // Today chart + list
+    renderScatter(svgToday, dayItems, startOfToday(), endOfToday());
+    renderList(listToday, dayItems);
 
-                <div className="mb-2 text-sm text-gray-300 text-center">
-                  Events for {historyDate}
-                </div>
+    // History view
+    elDate.value = historyDate;
+    elStatDate.textContent = historyDate;
+    const [y,m,d] = historyDate.split('-').map(Number);
+    const hs = startOfDay(new Date(y, m-1, d));
+    const he = endOfDay(new Date(hs));
+    const histItems = subsetWithIndex(hs, he);
+    elStatSel.textContent = histItems.length;
+    elStatAll2.textContent = smokeEvents.length;
+    renderScatter(svgHist, histItems, hs, he);
+    renderList(listHist, histItems);
+  }
 
-                <div className="h-72 bg-gray-800 p-4 rounded-lg mb-6">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                      <XAxis
-                        type="number"
-                        dataKey="x"
-                        domain={[dayStart, dayEnd]}
-                        scale="time"
-                        tickFormatter={(v) =>
-                          new Date(v).toLocaleTimeString([], {
-                            hour12: false,
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        }
-                        stroke="#ccc"
-                        label={{
-                          value: "Time of day",
-                          position: "insideBottom",
-                          offset: -5,
-                          fill: "#ccc",
-                        }}
-                      />
-                      <YAxis type="number" dataKey="y" domain={[0, "dataMax"]} hide />
-                      <Tooltip
-                        labelFormatter={(v) => formatTime(v)}
-                        formatter={(_, __, { payload }) => [formatTime(payload.ts), "Time"]}
-                        contentStyle={{ backgroundColor: "#222", border: "none", color: "#fff" }}
-                      />
-                      <Scatter data={data} shape="circle" fill="#facc15" />
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </div>
+  function renderList(ul, items) {
+    ul.innerHTML = '';
+    if (!items.length) {
+      const li = document.createElement('li');
+      li.className = 'li';
+      li.style.justifyContent = 'center';
+      li.textContent = 'No events logged.';
+      ul.appendChild(li);
+      return;
+    }
+    for (const e of items) {
+      const li = document.createElement('li');
+      li.className = 'li';
+      const left = document.createElement('span');
+      left.textContent = fmtTime(e.timestamp);
+      const btn = document.createElement('button');
+      btn.textContent = 'Delete';
+      btn.className = 'btn-red';
+      btn.addEventListener('click', () => deleteEvent(e._idx));
+      li.appendChild(left);
+      li.appendChild(btn);
+      ul.appendChild(li);
+    }
+  }
 
-                <div className="bg-gray-800 rounded-xl p-4 mb-4">
-                  <h2 className="text-lg font-bold mb-2 text-yellow-300">
-                    Events on {historyDate}
-                  </h2>
-                  {dayEventsWithIndex.length === 0 ? (
-                    <p className="text-gray-400">No events logged.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {dayEventsWithIndex.map((e) => (
-                        <li
-                          key={e._globalIndex}
-                          className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2"
-                        >
-                          <span className="text-white">{formatTime(e.timestamp)}</span>
-                          <button
-                            onClick={() => deleteEvent(e._globalIndex)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm"
-                          >
-                            Delete
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        );
-      }
-
-      const root = ReactDOM.createRoot(document.getElementById("root"));
-      root.render(<App />);
-    </script>
-  </body>
+  // Initial paint
+  render();
+})();
+</script>
+</body>
 </html>
